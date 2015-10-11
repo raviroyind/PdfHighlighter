@@ -24,7 +24,7 @@ namespace PdfTextHighlighter.Code
     public class MyLocationTextExtractionStrategy : LocationTextExtractionStrategy
     {
         //Hold each coordinate
-        public List<RectAndText> myPoints = new List<RectAndText>();
+        public List<RectAndText> MyPoints = new List<RectAndText>();
 
         //The string that we're searching for
         public String TextToSearchFor { get; set; }
@@ -48,8 +48,6 @@ namespace PdfTextHighlighter.Code
             var startPosition = System.Globalization.CultureInfo.CurrentCulture.CompareInfo.IndexOf(
                 renderInfo.GetText(), this.TextToSearchFor, this.CompareOptions);
 
-
-           
 
 
             //If not found bail
@@ -87,7 +85,7 @@ namespace PdfTextHighlighter.Code
                 );
 
             //Add this to our main collection
-            this.myPoints.Add(new RectAndText(rect, this.TextToSearchFor));
+            this.MyPoints.Add(new RectAndText(rect, this.TextToSearchFor));
         }
     }
 }

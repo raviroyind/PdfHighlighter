@@ -1,21 +1,15 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using iTextSharp.text.pdf.parser;
 using LinqToExcel;
 using Microsoft.VisualBasic;
-using PdfSearchHighlight.MyNSpace;
 using PdfTextHighlighter.Code;
 
 
@@ -23,20 +17,25 @@ namespace PdfTextHighlighter
 {
     public partial class Form1 : Form
     {
+        List<string> _fileList = new List<string>();
         public Form1()
         {
+           
             InitializeComponent();
         }
 
+        #region Button Events...
+
         private void btnStart_Click(object sender, EventArgs e)
         {
-            
-            //if (string.IsNullOrEmpty(txtExcelFile.Text) || string.IsNullOrEmpty(txtFirstPDF.Text) ||
-            //    string.IsNullOrEmpty(txtSecondPDF.Text))
-            //{
-            //    MessageBox.Show("One or more files not specified.");
-            //    return;
-            //}
+            _fileList=new List<string>();
+
+            if (string.IsNullOrEmpty(txtExcelFile.Text) || string.IsNullOrEmpty(txtFirstPDF.Text) ||
+                string.IsNullOrEmpty(txtSecondPDF.Text) || string.IsNullOrEmpty(txtDestinationFolder.Text))
+            {
+                MessageBox.Show("One or more files not specified.");
+                return;
+            }
 
 
             var pathToExcelFile = txtExcelFile.Text;
@@ -44,109 +43,67 @@ namespace PdfTextHighlighter
             const string sheetName = "Sheet1";
 
             var excelFile = new ExcelQueryFactory(pathToExcelFile);
-            var artistAlbums = from a in excelFile.WorksheetNoHeader(sheetName) select a;
-
-            StringBuilder sbArr = new StringBuilder();
+            var columnValues = from a in excelFile.WorksheetNoHeader(sheetName) select a;
 
 
-            foreach (var a in artistAlbums)
+            List<ExcelRow> listRows = new List<ExcelRow>();
+
+
+            var setNumber = 1;
+            var increment = 0;
+            foreach (var a in columnValues)
             {
-                sbArr.Append(a[1].Value.ToString());
+                listRows.Add(
+                    new ExcelRow
+                    {
+                        Index = increment,
+                        SetNumber = setNumber,
+                        ColumnValue = a[1].Value.ToString()
+                    }
+                );
 
+
+                if (!a[1].Value.ToString().EndsWith(","))
+                    setNumber++;
+
+                increment++;
             }
 
 
-            PdfTextGetter(StringComparison.Ordinal, "b.pdf", "b_001.pdf", sbArr.ToString());
-          
-        }
 
-        public void PdfTextGetter( StringComparison sc, string sourceFile, string destinationFile,string snewSearch)
-        {
-
-            string[] sArr = snewSearch.Split(',');
-
-            this.Cursor = Cursors.WaitCursor;
-            if (File.Exists(sourceFile))
+            for (var i = 1; i < increment - 1; i++)
             {
-                PdfReader pReader = new PdfReader(sourceFile);
+                var sbSearch = new StringBuilder();
 
-
-                var stamper = new iTextSharp.text.pdf.PdfStamper(pReader, new FileStream(destinationFile, FileMode.Append));
-               
-                
-                PB.Value = 0;
-                PB.Maximum = sArr.Length;
-
-                foreach (var s in sArr)
+                foreach (var item in listRows.Where(item => item.SetNumber == i))
                 {
-                    
-                
-                for (int page = 1; page <= pReader.NumberOfPages; page++)
-                {
-
-                    var t = new MyLocationTextExtractionStrategy(s,CompareOptions.Ordinal);
-
-
-                    using (var r = new PdfReader(sourceFile))
-                    {
-                        var ex = PdfTextExtractor.GetTextFromPage(r, 1, t);
-                    }
-
-                    myLocationTextExtractionStrategy strategy = new myLocationTextExtractionStrategy();
-                    var cb = stamper.GetUnderContent(page);
-
-                    //Send some data contained in PdfContentByte, looks like the first is always cero for me and the second 100, but i'm not sure if this could change in some cases
-                    strategy.UndercontentCharacterSpacing = (int) cb.CharacterSpacing;
-                    strategy.UndercontentHorizontalScaling = (int) cb.HorizontalScaling;
-
-
-                    //It's not really needed to get the text back, but we have to call this line ALWAYS, 
-                    //because it triggers the process that will get all chunks from PDF into our strategy Object
-                    string currentText = PdfTextExtractor.GetTextFromPage(pReader, page, strategy);
-
-                    //The real getter process starts in the following line
-                    List<RectAndText> matchesFound = t.myPoints;
-
-                    //Set the fill color of the shapes, I don't use a border because it would make the rect bigger
-                    //but maybe using a thin border could be a solution if you see the currect rect is not big enough to cover all the text it should cover
-                    cb.SetColorFill(BaseColor.BLACK);
-                    //.PINK)
-
-                    //MatchesFound contains all text with locations, so do whatever you want with it, this highlights them using PINK color:
-
-                    foreach (RectAndText rect in matchesFound)
-                    {
-                        if (rect.Text == s)
-                        {
-                            cb.Rectangle(rect.Rect.Left, rect.Rect.Bottom, rect.Rect.Width, rect.Rect.Height);
-                            //Create our hightlight
-                            float[] quad =
-                            {
-                                rect.Rect.Left,
-                                rect.Rect.Bottom,
-                                rect.Rect.Right,
-                                rect.Rect.Bottom,
-                                rect.Rect.Left,
-                                rect.Rect.Top,
-                                rect.Rect.Right,
-                                rect.Rect.Top
-                            };
-
-                            PdfAnnotation highlight = PdfAnnotation.CreateMarkup(stamper.Writer, rect.Rect,
-                                Constants.vbNull.ToString(), PdfAnnotation.MARKUP_HIGHLIGHT, quad);
-                            //Set the color
-                            highlight.Color = BaseColor.YELLOW;
-                            //Add the annotation
-                            stamper.AddAnnotation(highlight, page);
-                        }
-                    }
-                    
-                    PB.Value = PB.Value + 1;
+                    sbSearch.Append(item.ColumnValue);
                 }
-                }
-                stamper.Close();
+
+               if(!string.IsNullOrEmpty(sbSearch.ToString()))
+                   ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text,txtDestinationFolder.Text +"\\"+ System.IO.Path.GetFileNameWithoutExtension(txtFirstPDF.Text) + "_00" + i + ".pdf", sbSearch.ToString());
+
+
+               if (!string.IsNullOrEmpty(txtSecondPDF.Text) && !string.IsNullOrEmpty(sbSearch.ToString()))
+                    ProcessPdf(StringComparison.Ordinal, txtSecondPDF.Text, txtDestinationFolder.Text + "\\" + System.IO.Path.GetFileNameWithoutExtension(txtSecondPDF.Text) + "_00" + i + ".pdf", sbSearch.ToString());
+                    
             }
-            this.Cursor = Cursors.Default;
+
+            
+
+            MessageBox.Show("Pdf highlighted successfully!");
+
+            if (chkOpenPdfs.Checked)
+            {
+
+                if (_fileList.Count != 0)
+                {
+                    foreach (var file in _fileList)
+                    {
+                        System.Diagnostics.Process.Start(file);
+                    }
+                }
+            }
 
         }
 
@@ -154,7 +111,7 @@ namespace PdfTextHighlighter
         {
             var openFileDialogExcel = new OpenFileDialog
             {
-                InitialDirectory = @"D:\Projects\Adrian P\test_files\",
+                InitialDirectory = @"C:\",
                 Filter = @"Excel Files|*.xls;*.xlsx",
                 FilterIndex = 2,
                 RestoreDirectory = true
@@ -170,7 +127,7 @@ namespace PdfTextHighlighter
         {
             var openFileDialogPdf = new OpenFileDialog
             {
-                InitialDirectory = @"D:\Projects\Adrian P\test_files\",
+                InitialDirectory = @"C:\",
                 Filter = @"Pdf Files|*.pdf",
                 RestoreDirectory = true
             };
@@ -185,7 +142,7 @@ namespace PdfTextHighlighter
         {
             var openFileDialogPdf = new OpenFileDialog
             {
-                InitialDirectory = @"D:\Projects\Adrian P\test_files\",
+                InitialDirectory = @"C:\",
                 Filter = @"Pdf Files|*.pdf",
                 RestoreDirectory = true
             };
@@ -196,6 +153,140 @@ namespace PdfTextHighlighter
             }
         }
 
-        
+        private void chkOpenPdfs_CheckedChanged(object sender, EventArgs e)
+        {
+            if(chkOpenPdfs.Checked)
+                MessageBox.Show(this,@"Checking this will open all the resulting Pdfs!", @"Warming",MessageBoxButtons.OK);
+        }
+
+#endregion Button Events...
+
+#region Highlight...
+
+        public void ProcessPdf(StringComparison sc, string sourceFile, string destinationFile, string searchTerm)
+        {
+
+            var sArr = searchTerm.Split(',');
+            var exists = false;
+         
+            foreach (var occurence in sArr.Select(item => ReadPdfFile(sourceFile, item)).Where(occurence => occurence.Count > 0))
+            {
+                exists = true;
+            }
+
+            if (!exists)
+                return;
+
+            Cursor = Cursors.WaitCursor;
+            if (File.Exists(sourceFile))
+            {
+                var pReader = new PdfReader(sourceFile);
+
+                var stamper = new PdfStamper(pReader, new FileStream(destinationFile, FileMode.Append));
+
+                _fileList.Add(destinationFile);
+
+                progressBar.Value = 0;
+                progressBar.Maximum = sArr.Length;
+                
+                foreach (var s in sArr)
+                {
+
+
+                    for (var page = 1; page <= pReader.NumberOfPages; page++)
+                    {
+
+                        var t = new MyLocationTextExtractionStrategy(s, CompareOptions.Ordinal);
+
+
+                        using (var r = new PdfReader(sourceFile))
+                        {
+                            var ex = PdfTextExtractor.GetTextFromPage(r, 1, t);
+                        }
+
+
+                        var cb = stamper.GetUnderContent(page);
+
+                        var matchesFound = t.MyPoints;
+
+                        
+                        cb.SetColorFill(BaseColor.BLACK);
+                        
+
+                        foreach (var rect in matchesFound)
+                        {
+                            if (rect.Text == s)
+                            {
+                                cb.Rectangle(rect.Rect.Left, rect.Rect.Bottom, rect.Rect.Width, rect.Rect.Height);
+
+                                float[] quad = {
+                                    rect.Rect.Left,
+                                    rect.Rect.Bottom,
+                                    rect.Rect.Right,
+                                    rect.Rect.Bottom,
+                                    rect.Rect.Left,
+                                    rect.Rect.Top,
+                                    rect.Rect.Right,
+                                    rect.Rect.Top
+                                };
+
+                           
+                                
+                                var highlight = PdfAnnotation.CreateMarkup(stamper.Writer, rect.Rect,
+                                    Constants.vbNull.ToString(), PdfAnnotation.MARKUP_HIGHLIGHT, quad);
+                                
+                                highlight.Color = BaseColor.YELLOW;
+
+                                stamper.AddAnnotation(highlight, page);
+                            }
+                        }
+
+                        progressBar.Value = progressBar.Value + 1;
+                    }
+                }
+                stamper.Close();
+            }
+            this.Cursor = Cursors.Default;
+
+        }
+
+
+        public List<int> ReadPdfFile(string fileName, string searthText)
+        {
+            List<int> pages = new List<int>();
+            if (File.Exists(fileName))
+            {
+                PdfReader pdfReader = new PdfReader(fileName);
+                for (int page = 1; page <= pdfReader.NumberOfPages; page++)
+                {
+                    ITextExtractionStrategy strategy = new SimpleTextExtractionStrategy();
+
+                    string currentPageText = PdfTextExtractor.GetTextFromPage(pdfReader, page, strategy);
+                    if (currentPageText.Contains(searthText))
+                    {
+                        pages.Add(page);
+                    }
+                }
+                pdfReader.Close();
+            }
+            return pages;
+        }
+#endregion Highlight...
+
+        private void btnDestinationFolder_Click(object sender, EventArgs e)
+        {
+            var openFolderDialog = new FolderBrowserDialog
+            {
+                RootFolder =Environment.SpecialFolder.Desktop,
+                ShowNewFolderButton =true,
+            
+            };
+
+            if (openFolderDialog.ShowDialog() == DialogResult.OK)
+            {
+                txtDestinationFolder.Text = openFolderDialog.SelectedPath;
+            }
+        }
+
     }
 }

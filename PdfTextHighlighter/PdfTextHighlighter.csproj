@@ -43,9 +43,6 @@
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
-    <Reference Include="PdfSearchHighlight">
-      <HintPath>..\..\Adrian P\Test_pdf_search_highlight\Test\PdfSearchHighlight\bin\Debug\PdfSearchHighlight.dll</HintPath>
-    </Reference>
     <Reference Include="Remotion">
       <HintPath>..\packages\LinqToExcel.1.10.1\lib\Remotion.dll</HintPath>
     </Reference>
@@ -67,7 +64,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Code\Class1.cs" />
+    <Compile Include="Code\ExcelRow.cs" />
+    <Compile Include="Code\PdfTextHighlighter.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
