@@ -18,9 +18,10 @@ namespace PdfTextHighlighter
     public partial class Form1 : Form
     {
         List<string> _fileList = new List<string>();
+        private string _currentFile = string.Empty;
+        private string _lastBrowseLocation = string.Empty;
         public Form1()
         {
-           
             InitializeComponent();
         }
 
@@ -58,7 +59,8 @@ namespace PdfTextHighlighter
                     {
                         Index = increment,
                         SetNumber = setNumber,
-                        ColumnValue = a[1].Value.ToString()
+                        ColumnValue = a[1].Value.ToString(),
+                        FileName = string.IsNullOrWhiteSpace(a[0].Value.ToString())?"":a[0].Value.ToString()
                     }
                 );
 
@@ -69,8 +71,6 @@ namespace PdfTextHighlighter
                 increment++;
             }
 
-
-
             for (var i = 1; i < increment - 1; i++)
             {
                 var sbSearch = new StringBuilder();
@@ -78,14 +78,18 @@ namespace PdfTextHighlighter
                 foreach (var item in listRows.Where(item => item.SetNumber == i))
                 {
                     sbSearch.Append(item.ColumnValue);
+                    if (!string.IsNullOrEmpty(item.FileName))
+                        _currentFile = item.FileName;
                 }
 
+               
+
                if(!string.IsNullOrEmpty(sbSearch.ToString()))
-                   ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text,txtDestinationFolder.Text +"\\"+ System.IO.Path.GetFileNameWithoutExtension(txtFirstPDF.Text) + "_00" + i + ".pdf", sbSearch.ToString());
+                   ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtFirstPDF.Text) + ".pdf", sbSearch.ToString());
 
 
                if (!string.IsNullOrEmpty(txtSecondPDF.Text) && !string.IsNullOrEmpty(sbSearch.ToString()))
-                    ProcessPdf(StringComparison.Ordinal, txtSecondPDF.Text, txtDestinationFolder.Text + "\\" + System.IO.Path.GetFileNameWithoutExtension(txtSecondPDF.Text) + "_00" + i + ".pdf", sbSearch.ToString());
+                   ProcessPdf(StringComparison.Ordinal, txtSecondPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtSecondPDF.Text) + ".pdf", sbSearch.ToString());
                     
             }
 
@@ -107,18 +111,36 @@ namespace PdfTextHighlighter
 
         }
 
+        private static string GetFileName(string currentFile,string sourceFile)
+        {
+            var paddingLeft = string.Empty;
+
+            if (currentFile.Length==1)
+                paddingLeft =  "_00";
+            else if (currentFile.Length == 2)
+                paddingLeft = "_0";
+            else if (currentFile.Length == 3)
+                paddingLeft = "_";
+
+            return System.IO.Path.GetFileNameWithoutExtension(sourceFile) + paddingLeft + currentFile;
+        }
+
         private void btnExcelFile_Click(object sender, EventArgs e)
         {
             var openFileDialogExcel = new OpenFileDialog
             {
-                InitialDirectory = @"C:\",
+                InitialDirectory = string.IsNullOrEmpty(_lastBrowseLocation) ? @"C:\" : _lastBrowseLocation,
                 Filter = @"Excel Files|*.xls;*.xlsx",
                 FilterIndex = 2,
-                RestoreDirectory = true
+                RestoreDirectory = false
+                
             };
 
             if (openFileDialogExcel.ShowDialog() == DialogResult.OK)
             {
+                _lastBrowseLocation = openFileDialogExcel.FileName.Substring(0,
+                    openFileDialogExcel.FileName.LastIndexOf("\\", StringComparison.Ordinal));
+
                 txtExcelFile.Text = openFileDialogExcel.FileName;
             }
         }
@@ -127,13 +149,16 @@ namespace PdfTextHighlighter
         {
             var openFileDialogPdf = new OpenFileDialog
             {
-                InitialDirectory = @"C:\",
+                InitialDirectory = string.IsNullOrEmpty(_lastBrowseLocation) ? @"C:\" : _lastBrowseLocation,
                 Filter = @"Pdf Files|*.pdf",
-                RestoreDirectory = true
+                RestoreDirectory = false
             };
 
             if (openFileDialogPdf.ShowDialog() == DialogResult.OK)
             {
+                _lastBrowseLocation = openFileDialogPdf.FileName.Substring(0,
+                    openFileDialogPdf.FileName.LastIndexOf("\\", StringComparison.Ordinal));
+
                 txtFirstPDF.Text = openFileDialogPdf.FileName;
             }
         }
@@ -142,13 +167,16 @@ namespace PdfTextHighlighter
         {
             var openFileDialogPdf = new OpenFileDialog
             {
-                InitialDirectory = @"C:\",
+                InitialDirectory = string.IsNullOrEmpty(_lastBrowseLocation) ? @"C:\" : _lastBrowseLocation,
                 Filter = @"Pdf Files|*.pdf",
-                RestoreDirectory = true
+                RestoreDirectory = false
             };
 
             if (openFileDialogPdf.ShowDialog() == DialogResult.OK)
             {
+                _lastBrowseLocation = openFileDialogPdf.FileName.Substring(0,
+                   openFileDialogPdf.FileName.LastIndexOf("\\", StringComparison.Ordinal));
+
                 txtSecondPDF.Text = openFileDialogPdf.FileName;
             }
         }
@@ -230,8 +258,7 @@ namespace PdfTextHighlighter
                                     rect.Rect.Top
                                 };
 
-                           
-                                
+
                                 var highlight = PdfAnnotation.CreateMarkup(stamper.Writer, rect.Rect,
                                     Constants.vbNull.ToString(), PdfAnnotation.MARKUP_HIGHLIGHT, quad);
                                 
@@ -287,6 +314,8 @@ namespace PdfTextHighlighter
                 txtDestinationFolder.Text = openFolderDialog.SelectedPath;
             }
         }
+
+   
 
     }
 }
