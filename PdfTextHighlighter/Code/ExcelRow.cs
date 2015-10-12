@@ -13,5 +13,9 @@ namespace PdfTextHighlighter.Code
         public int SetNumber { get; set; }
 
         public string ColumnValue { get; set; }
+
+        public string FileName { get; set; }
+
+
     }
 }
