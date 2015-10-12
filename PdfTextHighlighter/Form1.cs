@@ -187,6 +187,21 @@ namespace PdfTextHighlighter
                 MessageBox.Show(this,@"Checking this will open all the resulting Pdfs!", @"Warming",MessageBoxButtons.OK);
         }
 
+        private void btnDestinationFolder_Click(object sender, EventArgs e)
+        {
+            var openFolderDialog = new FolderBrowserDialog
+            {
+                RootFolder = Environment.SpecialFolder.Desktop,
+                ShowNewFolderButton = true,
+
+            };
+
+            if (openFolderDialog.ShowDialog() == DialogResult.OK)
+            {
+                txtDestinationFolder.Text = openFolderDialog.SelectedPath;
+            }
+        }
+
 #endregion Button Events...
 
 #region Highlight...
@@ -300,22 +315,6 @@ namespace PdfTextHighlighter
         }
 #endregion Highlight...
 
-        private void btnDestinationFolder_Click(object sender, EventArgs e)
-        {
-            var openFolderDialog = new FolderBrowserDialog
-            {
-                RootFolder =Environment.SpecialFolder.Desktop,
-                ShowNewFolderButton =true,
-            
-            };
-
-            if (openFolderDialog.ShowDialog() == DialogResult.OK)
-            {
-                txtDestinationFolder.Text = openFolderDialog.SelectedPath;
-            }
-        }
-
-   
-
+    
     }
 }
