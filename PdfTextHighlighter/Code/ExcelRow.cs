@@ -16,6 +16,9 @@ namespace PdfTextHighlighter.Code
 
         public string FileName { get; set; }
 
+        public string OccuranceFirstPdf { get; set; }
 
+        public string OccuranceSecondPdf { get; set; }
     }
+
 }
