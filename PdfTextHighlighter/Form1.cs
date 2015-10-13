@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.OleDb;
 using System.Globalization;
 using System.IO;
@@ -11,12 +10,9 @@ using iTextSharp.text;
 using iTextSharp.text.pdf;
 using iTextSharp.text.pdf.parser;
 using LinqToExcel;
-using LinqToExcel.Extensions;
 using Microsoft.VisualBasic;
 using PdfTextHighlighter.Code;
-using Cell = LinqToExcel.Cell;
 using ExcelRow = PdfTextHighlighter.Code.ExcelRow;
-using Row = LinqToExcel.Row;
 
 
 namespace PdfTextHighlighter
@@ -27,14 +23,16 @@ namespace PdfTextHighlighter
         private string _currentFile = string.Empty;
         private int _actualRow = 0;
         private string _lastBrowseLocation = string.Empty;
-        const string SheetName = "Sheet1";
-        
+        //const string SheetName = "Sheet1";
+       
         
         List<KeyValuePair<int, string>> _searchValues = new List<KeyValuePair<int, string>>();
-        List<KeyValuePair<int, string>> _foundValues = new List<KeyValuePair<int, string>>();
+        List<KeyValuePair<int, string>> _foundValuesInFirstPdf = new List<KeyValuePair<int, string>>();
+        List<KeyValuePair<int, string>> _foundValuesInSecindPdf = new List<KeyValuePair<int, string>>();
         public Form1()
         {
             InitializeComponent();
+            Application.EnableVisualStyles();
         }
 
         #region Button Events...
@@ -42,6 +40,7 @@ namespace PdfTextHighlighter
         private void btnStart_Click(object sender, EventArgs e)
         {
             _fileList=new List<string>();
+            btnStart.Enabled = false;
 
             if (string.IsNullOrEmpty(txtExcelFile.Text) || string.IsNullOrEmpty(txtFirstPDF.Text) ||
                 string.IsNullOrEmpty(txtSecondPDF.Text) || string.IsNullOrEmpty(txtDestinationFolder.Text))
@@ -53,10 +52,10 @@ namespace PdfTextHighlighter
 
             var pathToExcelFile = txtExcelFile.Text;
             var excelFile = new ExcelQueryFactory(pathToExcelFile);
-            var columnValues = from a in excelFile.WorksheetNoHeader(SheetName) select a;
+            var columnValues = from a in excelFile.WorksheetNoHeader(0) select a;
 
 
-            List<ExcelRow> listRows = new List<ExcelRow>();
+            var listRows = new List<ExcelRow>();
 
 
             var setNumber = 1;
@@ -83,12 +82,12 @@ namespace PdfTextHighlighter
             for (var i = 1; i < increment - 1; i++)
             {
                 var sbSearch = new StringBuilder();
+                _searchValues.Clear();
 
-                foreach (var item in listRows.Where(item => item.SetNumber == i))
+                foreach (var item in from item in listRows.Where(item => item.SetNumber == i) let index = item.Index let text = item.ColumnValue select item)
                 {
-                    var index = item.Index;
-                    var text = item.ColumnValue;
                     sbSearch.Append(item.ColumnValue);
+
                     _searchValues.Add(new KeyValuePair<int, string>(item.Index, item.ColumnValue));
 
                     if (!string.IsNullOrEmpty(item.FileName))
@@ -97,9 +96,6 @@ namespace PdfTextHighlighter
                         _actualRow = item.SetNumber;
                     }
                 }
-
-
-                
 
                if(!string.IsNullOrEmpty(sbSearch.ToString()))
                    ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtFirstPDF.Text) + ".pdf", sbSearch.ToString(), i, _searchValues);
@@ -110,10 +106,47 @@ namespace PdfTextHighlighter
                     
             }
 
-            
+            #region Update Excel...
 
+            lblMsg.Visible = true;
+            foreach (var item in _foundValuesInFirstPdf)
+            {
+                var myCommand = new OleDbCommand();
+                string sqlUpdate = null;
+
+                var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
+                var myConnection = new OleDbConnection(cnn);
+                myConnection.Open();
+                myCommand.Connection = myConnection;
+                sqlUpdate = "UPDATE [Sheet1$H" + item.Key + ":H" + item.Key + "] SET F1='" + item.Value + "'";
+                myCommand.CommandText = sqlUpdate;
+                myCommand.ExecuteNonQuery();
+                myConnection.Close();
+
+            }
+
+            foreach (var item in _foundValuesInSecindPdf)
+            {
+                var myCommand = new OleDbCommand();
+                string sqlUpdate = null;
+
+                var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
+                var myConnection = new OleDbConnection(cnn);
+                myConnection.Open();
+                myCommand.Connection = myConnection;
+                sqlUpdate = "UPDATE [Sheet1$I" + item.Key + ":I" + item.Key + "] SET F1='" + item.Value + "'";
+                myCommand.CommandText = sqlUpdate;
+                myCommand.ExecuteNonQuery();
+                myConnection.Close();
+
+            }
+
+            #endregion Update Excel...
+ 
             MessageBox.Show("Pdf highlighted successfully!");
-
+            lblMsg.Visible = false;
+            btnStart.Enabled = true;
+            
             if (chkOpenPdfs.Checked)
             {
 
@@ -223,206 +256,64 @@ namespace PdfTextHighlighter
 
 #region Highlight...
 
-
         public void ProcessPdf(StringComparison sc, string sourceFile, string destinationFile, string searchTerm, int excelRowNumber, List<KeyValuePair<int, string>> searchValues)
         {
-             
             var sArr = searchTerm.Split(',');
-            var exists = false;
-            var currentPosition = 0;
-            var lastValue = string.Empty;
-
-          
-
-            foreach (KeyValuePair<int, string> item in searchValues)
-            {
-                var foundText = string.Empty;
-                string[] newStrings = item.Value.Split(',');
-
-                foreach (var search in newStrings)
-                {
-                    if (ReadPdfFile(sourceFile, search).Count > 0)
-                    {
-                        exists = true;
-                        foundText += search;
-                    }
-                }
-
-                _foundValues.Add(new KeyValuePair<int, string>(item.Key, foundText));
-
-            }
-
-
-#region Update Excel...
-
-            foreach (KeyValuePair<int, string> item in _foundValues)
-            {
-                OleDbCommand myCommand = new OleDbCommand();
-                string sqlUpdate = null;
-
-                var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
-                var myConnection = new OleDbConnection(cnn);
-                myConnection.Open();
-                myCommand.Connection = myConnection;
-
-                if (sourceFile == txtFirstPDF.Text)
-                    sqlUpdate = "UPDATE [Sheet1$H" + item.Key + ":H" + item.Key + "] SET F1='" + item.Value + "'";
-                else
-                    sqlUpdate = "UPDATE [Sheet1$I" + item.Key + ":I" + item.Key + "] SET F1='" + item.Value + "'";
-
-                myCommand.CommandText = sqlUpdate;
-                myCommand.ExecuteNonQuery();
-                myConnection.Close();
-                
-            }
-
-#endregion Update Excel...
-
-            #region Commented2...
-            //foreach (var occurence in sArr.Select(item => ReadPdfFile(sourceFile, item)).Where(occurence => occurence.Count > 0))
-            //{
-            //    exists = true;
-            //    var foundText = sArr[currentPosition].ToString();
-            //    currentPosition++;
-
-            //    #region Commented...
-            //    //update excel.
-            //    //try
-            //    //{
-                 
-            //    //    _listRowsToUpdate.Add(
-            //    //        new FoundValues
-            //    //        {
-            //    //         PdfFile   = sourceFile,
-            //    //         RowNumber = actualRow,
-            //    //         ValueText = foundText
-            //    //        }
-            //    //        );
-
-
-            //    //    OleDbCommand myCommand = new OleDbCommand();
-            //    //    string sqlUpdate = null;
-                   
-            //    //    var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
-            //    //    var myConnection = new OleDbConnection(cnn);
-            //    //    myConnection.Open();
-            //    //    myCommand.Connection = myConnection;
-                   
-            //    //    var cellVal = "";
-            //    //    if (string.IsNullOrEmpty(lastValue))
-            //    //        cellVal = foundText;
-            //    //    else
-            //    //        cellVal = lastValue + "," + foundText;
-
-            //    //    if(sourceFile == txtFirstPDF.Text)
-            //    //        sqlUpdate = "UPDATE [Sheet1$H" + excelRowNumber + ":H" + excelRowNumber + "] SET F1='" + cellVal+ "'";
-            //    //    else
-            //    //        sqlUpdate = "UPDATE [Sheet1$I" + excelRowNumber + ":I" + excelRowNumber + "] SET F1='" + cellVal + "'";
-                    
-            //    //    myCommand.CommandText = sqlUpdate;
-            //    //    myCommand.ExecuteNonQuery();
-            //    //    myConnection.Close();
-            //    //    lastValue =lastValue + ", " + foundText;
-
-            //    //}
-            //    //catch (Exception ex)
-            //    //{
-            //    //    if (ex.Message.Contains("The field is too small"))
-            //    //    {
-            //    //        System.Data.OleDb.OleDbCommand myCommand = new System.Data.OleDb.OleDbCommand();
-            //    //        string sqlUpdate = null;
-
-            //    //        var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
-            //    //        var myConnection = new System.Data.OleDb.OleDbConnection(cnn);
-            //    //        myConnection.Open();
-            //    //        myCommand.Connection = myConnection;
-
-            //    //        var cellVal = "";
-            //    //        if (string.IsNullOrEmpty(lastValue))
-            //    //            cellVal = foundText;
-            //    //        else
-            //    //            cellVal = lastValue + "," + foundText;
-
-            //    //        var val1 = cellVal.Substring(0, (cellVal.Length/2));
-            //    //        var val2 = cellVal.Substring((cellVal.Length / 2)+1);
-
-
-            //    //        if (sourceFile == txtFirstPDF.Text)
-            //    //            sqlUpdate = "UPDATE [Sheet1$H" + excelRowNumber + ":H" + excelRowNumber + "] SET F1='" + val1 + "'";
-            //    //        else
-            //    //            sqlUpdate = "UPDATE [Sheet1$I" + excelRowNumber + ":I" + excelRowNumber + "] SET F1='" + val1 + "'";
-
-            //    //        myCommand.CommandText = sqlUpdate;
-            //    //        myCommand.ExecuteNonQuery();
-
-
-            //    //        if (sourceFile == txtFirstPDF.Text)
-            //    //            sqlUpdate = "UPDATE [Sheet1$H" + excelRowNumber +1 + ":H" + excelRowNumber + "] SET F1='" + val2 + "'";
-            //    //        else
-            //    //            sqlUpdate = "UPDATE [Sheet1$I" + excelRowNumber +1 + ":I" + excelRowNumber + "] SET F1='" + val2 + "'";
-
-            //    //        myCommand.CommandText = sqlUpdate;
-            //    //        myCommand.ExecuteNonQuery();
-
-            //    //        myConnection.Close();
-            //    //        lastValue = string.Empty;
-
-            //    //    }
-
-            //    //}
-
-            //    #endregion Commented...
-            //}
-
-            #endregion Commented2...
-
-
-            if (!exists)
-                return;
-
+            myProgressBar.Maximum = searchValues.Count;
+            bool found=false;
             Cursor = Cursors.WaitCursor;
             if (File.Exists(sourceFile))
             {
-                var pReader = new PdfReader(sourceFile);
-
-                var stamper = new PdfStamper(pReader, new FileStream(destinationFile, FileMode.Append));
-
-                _fileList.Add(destinationFile);
-
-                progressBar.Value = 0;
-                progressBar.Maximum = sArr.Length;
                 
-                foreach (var s in sArr)
+                var pReader = new PdfReader(sourceFile);
+                myProgressBar.Value = 0;
+                PdfStamper stamper = null;
+                
+                foreach (var item in searchValues)
                 {
-
-
-                    for (var page = 1; page <= pReader.NumberOfPages; page++)
+                     
+                    var newStrings = item.Value.Split(',');
+                    var foundText = string.Empty;
+                    foreach (var search in newStrings)
                     {
 
-                        var t = new MyLocationTextExtractionStrategy(s, CompareOptions.Ordinal);
-
-
-                        using (var r = new PdfReader(sourceFile))
+                        for (var page = 1; page <= pReader.NumberOfPages; page++)
                         {
-                            var ex = PdfTextExtractor.GetTextFromPage(r, 1, t);
-                        }
 
+                            var t = new MyLocationTextExtractionStrategy(search, CompareOptions.Ordinal);
 
-                        var cb = stamper.GetUnderContent(page);
-
-                        var matchesFound = t.MyPoints;
-
-                        
-                        cb.SetColorFill(BaseColor.BLACK);
-                        
-
-                        foreach (var rect in matchesFound)
-                        {
-                            if (rect.Text == s)
+                            using (var r = new PdfReader(sourceFile))
                             {
-                                cb.Rectangle(rect.Rect.Left, rect.Rect.Bottom, rect.Rect.Width, rect.Rect.Height);
+                                var ex = PdfTextExtractor.GetTextFromPage(r, 1, t);
+                            }
 
-                                float[] quad = {
+                            var matchesFound = t.MyPoints;
+
+                            if (t.MyPoints.Count > 0)
+                            {
+                                found = true;
+                                if (!string.IsNullOrEmpty(search))
+                                {
+                                    foundText +="," + search;
+                                }
+
+
+                                if(!File.Exists(destinationFile))
+                                    stamper = new PdfStamper(pReader, new FileStream(destinationFile, FileMode.Create));
+
+                                if (!_fileList.Contains(destinationFile))
+                                    _fileList.Add(destinationFile);
+
+                                var cb = stamper.GetUnderContent(page);
+                                cb.SetColorFill(BaseColor.BLACK);
+
+                                foreach (var rect in matchesFound)
+                                {
+                                    if (rect.Text == search)
+                                    {
+                                        cb.Rectangle(rect.Rect.Left, rect.Rect.Bottom, rect.Rect.Width, rect.Rect.Height);
+
+                                        float[] quad = {
                                     rect.Rect.Left,
                                     rect.Rect.Bottom,
                                     rect.Rect.Right,
@@ -433,25 +324,43 @@ namespace PdfTextHighlighter
                                     rect.Rect.Top
                                 };
 
+                                        var highlight = PdfAnnotation.CreateMarkup(stamper.Writer, rect.Rect,
+                                            Constants.vbNull.ToString(), PdfAnnotation.MARKUP_HIGHLIGHT, quad);
 
-                                var highlight = PdfAnnotation.CreateMarkup(stamper.Writer, rect.Rect,
-                                    Constants.vbNull.ToString(), PdfAnnotation.MARKUP_HIGHLIGHT, quad);
-                                
-                                highlight.Color = BaseColor.YELLOW;
+                                        highlight.Color = BaseColor.YELLOW;
 
-                                stamper.AddAnnotation(highlight, page);
+                                        stamper.AddAnnotation(highlight, page);
+                                    }
+                                }
                             }
                         }
-
-                        progressBar.Value = progressBar.Value + 1;
+                        
                     }
+
+                    if (found && !string.IsNullOrEmpty(foundText))
+                    {
+
+                        if (sourceFile == txtFirstPDF.Text)
+                        {
+                            _foundValuesInFirstPdf.Add(new KeyValuePair<int, string>(item.Key, foundText.Substring(1)));
+                        }
+                        else
+                        {
+                            _foundValuesInSecindPdf.Add(new KeyValuePair<int, string>(item.Key, foundText.Substring(1)));
+                        }
+                    }
+
+                    myProgressBar.Value = myProgressBar.Value + 1;
                 }
-                stamper.Close();
+               
+                if(stamper !=null)
+                    stamper.Close();
+                
+                
             }
             this.Cursor = Cursors.Default;
 
         }
-
 
         public List<int> ReadPdfFile(string fileName, string searthText)
         {
@@ -473,6 +382,7 @@ namespace PdfTextHighlighter
             }
             return pages;
         }
+
 #endregion Highlight...
 
     

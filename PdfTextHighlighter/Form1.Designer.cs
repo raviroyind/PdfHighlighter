@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.btnStart = new System.Windows.Forms.Button();
-            this.progressBar = new System.Windows.Forms.ProgressBar();
             this.btnExcelFile = new System.Windows.Forms.Button();
             this.txtExcelFile = new System.Windows.Forms.TextBox();
             this.txtFirstPDF = new System.Windows.Forms.TextBox();
@@ -39,6 +38,8 @@
             this.txtDestinationFolder = new System.Windows.Forms.TextBox();
             this.btnDestinationFolder = new System.Windows.Forms.Button();
             this.chkOpenPdfs = new System.Windows.Forms.CheckBox();
+            this.lblMsg = new System.Windows.Forms.Label();
+            this.myProgressBar = new System.Windows.Forms.ProgressBar();
             this.SuspendLayout();
             // 
             // btnStart
@@ -50,15 +51,6 @@
             this.btnStart.Text = "Start";
             this.btnStart.UseVisualStyleBackColor = true;
             this.btnStart.Click += new System.EventHandler(this.btnStart_Click);
-            // 
-            // progressBar
-            // 
-            this.progressBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(192)))));
-            this.progressBar.Location = new System.Drawing.Point(26, 203);
-            this.progressBar.Margin = new System.Windows.Forms.Padding(4);
-            this.progressBar.Name = "progressBar";
-            this.progressBar.Size = new System.Drawing.Size(547, 73);
-            this.progressBar.TabIndex = 2;
             // 
             // btnExcelFile
             // 
@@ -139,12 +131,33 @@
             this.chkOpenPdfs.UseVisualStyleBackColor = true;
             this.chkOpenPdfs.CheckedChanged += new System.EventHandler(this.chkOpenPdfs_CheckedChanged);
             // 
+            // lblMsg
+            // 
+            this.lblMsg.AutoSize = true;
+            this.lblMsg.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblMsg.ForeColor = System.Drawing.Color.Crimson;
+            this.lblMsg.Location = new System.Drawing.Point(90, 296);
+            this.lblMsg.Name = "lblMsg";
+            this.lblMsg.Size = new System.Drawing.Size(402, 18);
+            this.lblMsg.TabIndex = 13;
+            this.lblMsg.Text = "Pdf Highlighted, Updating Excel Sheet Please wait....";
+            this.lblMsg.Visible = false;
+            // 
+            // myProgressBar
+            // 
+            this.myProgressBar.Location = new System.Drawing.Point(26, 225);
+            this.myProgressBar.Name = "myProgressBar";
+            this.myProgressBar.Size = new System.Drawing.Size(547, 55);
+            this.myProgressBar.TabIndex = 14;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(602, 547);
+            this.Controls.Add(this.myProgressBar);
+            this.Controls.Add(this.lblMsg);
             this.Controls.Add(this.chkOpenPdfs);
             this.Controls.Add(this.txtDestinationFolder);
             this.Controls.Add(this.btnDestinationFolder);
@@ -154,7 +167,6 @@
             this.Controls.Add(this.btnFirstPDF);
             this.Controls.Add(this.txtExcelFile);
             this.Controls.Add(this.btnExcelFile);
-            this.Controls.Add(this.progressBar);
             this.Controls.Add(this.btnStart);
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
@@ -167,7 +179,6 @@
         #endregion
 
         private System.Windows.Forms.Button btnStart;
-        internal System.Windows.Forms.ProgressBar progressBar;
         private System.Windows.Forms.Button btnExcelFile;
         private System.Windows.Forms.TextBox txtExcelFile;
         private System.Windows.Forms.TextBox txtFirstPDF;
@@ -177,6 +188,8 @@
         private System.Windows.Forms.TextBox txtDestinationFolder;
         private System.Windows.Forms.Button btnDestinationFolder;
         private System.Windows.Forms.CheckBox chkOpenPdfs;
+        private System.Windows.Forms.Label lblMsg;
+        private System.Windows.Forms.ProgressBar myProgressBar;
     }
 }
 
