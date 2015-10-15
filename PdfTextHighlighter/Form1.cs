@@ -24,8 +24,8 @@ namespace PdfTextHighlighter
         private int _actualRow = 0;
         private string _lastBrowseLocation = string.Empty;
         //const string SheetName = "Sheet1";
-       
-        
+
+
         List<KeyValuePair<int, string>> _searchValues = new List<KeyValuePair<int, string>>();
         List<KeyValuePair<int, string>> _foundValuesInFirstPdf = new List<KeyValuePair<int, string>>();
         List<KeyValuePair<int, string>> _foundValuesInSecindPdf = new List<KeyValuePair<int, string>>();
@@ -39,7 +39,9 @@ namespace PdfTextHighlighter
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-            _fileList=new List<string>();
+            CleanDestination();
+
+            _fileList = new List<string>();
             btnStart.Enabled = false;
 
             if (string.IsNullOrEmpty(txtExcelFile.Text) || string.IsNullOrEmpty(txtFirstPDF.Text) ||
@@ -68,7 +70,7 @@ namespace PdfTextHighlighter
                         Index = increment,
                         SetNumber = setNumber,
                         ColumnValue = a[1].Value.ToString(),
-                        FileName = string.IsNullOrWhiteSpace(a[0].Value.ToString())?"":a[0].Value.ToString()
+                        FileName = string.IsNullOrWhiteSpace(a[0].Value.ToString()) ? "" : a[0].Value.ToString()
                     }
                 );
 
@@ -97,13 +99,13 @@ namespace PdfTextHighlighter
                     }
                 }
 
-               if(!string.IsNullOrEmpty(sbSearch.ToString()))
-                   ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtFirstPDF.Text) + ".pdf", sbSearch.ToString(), i, _searchValues);
+                if (!string.IsNullOrEmpty(sbSearch.ToString()))
+                    ProcessPdf(StringComparison.Ordinal, txtFirstPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtFirstPDF.Text) + ".pdf", sbSearch.ToString(), i, _searchValues);
 
 
-               if (!string.IsNullOrEmpty(txtSecondPDF.Text) && !string.IsNullOrEmpty(sbSearch.ToString()))
-                   ProcessPdf(StringComparison.Ordinal, txtSecondPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtSecondPDF.Text) + ".pdf", sbSearch.ToString(), i, _searchValues);
-                    
+                if (!string.IsNullOrEmpty(txtSecondPDF.Text) && !string.IsNullOrEmpty(sbSearch.ToString()))
+                    ProcessPdf(StringComparison.Ordinal, txtSecondPDF.Text, txtDestinationFolder.Text + "\\" + GetFileName(_currentFile, txtSecondPDF.Text) + ".pdf", sbSearch.ToString(), i, _searchValues);
+
             }
 
             #region Update Excel...
@@ -113,6 +115,7 @@ namespace PdfTextHighlighter
             {
                 var myCommand = new OleDbCommand();
                 string sqlUpdate = null;
+                var count = item.Value.Split(',').Count();
 
                 var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
                 var myConnection = new OleDbConnection(cnn);
@@ -121,6 +124,12 @@ namespace PdfTextHighlighter
                 sqlUpdate = "UPDATE [Sheet1$H" + item.Key + ":H" + item.Key + "] SET F1='" + item.Value + "'";
                 myCommand.CommandText = sqlUpdate;
                 myCommand.ExecuteNonQuery();
+
+
+                sqlUpdate = "UPDATE [Sheet1$J" + item.Key + ":J" + item.Key + "] SET F1='" + count + "'";
+                myCommand.CommandText = sqlUpdate;
+                myCommand.ExecuteNonQuery();
+
                 myConnection.Close();
 
             }
@@ -129,6 +138,7 @@ namespace PdfTextHighlighter
             {
                 var myCommand = new OleDbCommand();
                 string sqlUpdate = null;
+                var count = item.Value.Split(',').Count();
 
                 var cnn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + txtExcelFile.Text + ";Extended Properties='Excel 8.0;HDR=NO;'";
                 var myConnection = new OleDbConnection(cnn);
@@ -137,16 +147,21 @@ namespace PdfTextHighlighter
                 sqlUpdate = "UPDATE [Sheet1$I" + item.Key + ":I" + item.Key + "] SET F1='" + item.Value + "'";
                 myCommand.CommandText = sqlUpdate;
                 myCommand.ExecuteNonQuery();
+
+                sqlUpdate = "UPDATE [Sheet1$K" + item.Key + ":K" + item.Key + "] SET F1='" + count + "'";
+                myCommand.CommandText = sqlUpdate;
+                myCommand.ExecuteNonQuery();
+
                 myConnection.Close();
 
             }
 
             #endregion Update Excel...
- 
+
             MessageBox.Show("Pdf highlighted successfully!");
             lblMsg.Visible = false;
             btnStart.Enabled = true;
-            
+
             if (chkOpenPdfs.Checked)
             {
 
@@ -161,12 +176,31 @@ namespace PdfTextHighlighter
 
         }
 
-        private static string GetFileName(string currentFile,string sourceFile)
+        private void CleanDestination()
         {
+            var downloadedMessageInfo = new DirectoryInfo(txtDestinationFolder.Text);
+
+            foreach (var file in downloadedMessageInfo.GetFiles())
+            {
+                try
+                {
+                    file.Delete();
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+                
+            }
+        }
+
+        private static string GetFileName(string currentFile, string sourceFile)
+        {
+
             var paddingLeft = string.Empty;
 
-            if (currentFile.Length==1)
-                paddingLeft =  "_00";
+            if (currentFile.Length == 1)
+                paddingLeft = "_00";
             else if (currentFile.Length == 2)
                 paddingLeft = "_0";
             else if (currentFile.Length == 3)
@@ -183,7 +217,7 @@ namespace PdfTextHighlighter
                 Filter = @"Excel Files|*.xls;*.xlsx",
                 FilterIndex = 2,
                 RestoreDirectory = false
-                
+
             };
 
             if (openFileDialogExcel.ShowDialog() == DialogResult.OK)
@@ -233,8 +267,8 @@ namespace PdfTextHighlighter
 
         private void chkOpenPdfs_CheckedChanged(object sender, EventArgs e)
         {
-            if(chkOpenPdfs.Checked)
-                MessageBox.Show(this,@"Checking this will open all the resulting Pdfs!", @"Warming",MessageBoxButtons.OK);
+            if (chkOpenPdfs.Checked)
+                MessageBox.Show(this, @"Checking this will open all the resulting Pdfs!", @"Warming", MessageBoxButtons.OK);
         }
 
         private void btnDestinationFolder_Click(object sender, EventArgs e)
@@ -252,26 +286,26 @@ namespace PdfTextHighlighter
             }
         }
 
-#endregion Button Events...
+        #endregion Button Events...
 
-#region Highlight...
+        #region Highlight...
 
         public void ProcessPdf(StringComparison sc, string sourceFile, string destinationFile, string searchTerm, int excelRowNumber, List<KeyValuePair<int, string>> searchValues)
         {
             var sArr = searchTerm.Split(',');
             myProgressBar.Maximum = searchValues.Count;
-            bool found=false;
+            bool found = false;
             Cursor = Cursors.WaitCursor;
             if (File.Exists(sourceFile))
             {
-                
+
                 var pReader = new PdfReader(sourceFile);
                 myProgressBar.Value = 0;
                 PdfStamper stamper = null;
-                
+
                 foreach (var item in searchValues)
                 {
-                     
+
                     var newStrings = item.Value.Split(',');
                     var foundText = string.Empty;
                     foreach (var search in newStrings)
@@ -294,11 +328,11 @@ namespace PdfTextHighlighter
                                 found = true;
                                 if (!string.IsNullOrEmpty(search))
                                 {
-                                    foundText +="," + search;
+                                    foundText += "," + search;
                                 }
 
 
-                                if(!File.Exists(destinationFile))
+                                if (!File.Exists(destinationFile))
                                     stamper = new PdfStamper(pReader, new FileStream(destinationFile, FileMode.Create));
 
                                 if (!_fileList.Contains(destinationFile))
@@ -334,7 +368,7 @@ namespace PdfTextHighlighter
                                 }
                             }
                         }
-                        
+
                     }
 
                     if (found && !string.IsNullOrEmpty(foundText))
@@ -352,11 +386,11 @@ namespace PdfTextHighlighter
 
                     myProgressBar.Value = myProgressBar.Value + 1;
                 }
-               
-                if(stamper !=null)
+
+                if (stamper != null)
                     stamper.Close();
-                
-                
+
+
             }
             this.Cursor = Cursors.Default;
 
@@ -383,8 +417,8 @@ namespace PdfTextHighlighter
             return pages;
         }
 
-#endregion Highlight...
+        #endregion Highlight...
 
-    
+
     }
 }

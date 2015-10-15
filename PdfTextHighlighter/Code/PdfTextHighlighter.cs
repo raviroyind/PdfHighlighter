@@ -65,13 +65,13 @@ namespace PdfTextHighlighter.Code
             var chars =
                 renderInfo.GetCharacterRenderInfos().Skip(startPosition).Take(this.TextToSearchFor.Length).ToList();
 
-            
+
 
             //Grab the first and last character
             var firstChar = chars.First();
             var lastChar = chars.Last();
 
-          
+
             //Get the bounding box for the chunk of text
             var bottomLeft = firstChar.GetDescentLine().GetStartPoint();
             var topRight = lastChar.GetAscentLine().GetEndPoint();
